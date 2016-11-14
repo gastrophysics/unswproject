@@ -123,7 +123,7 @@ except:
     orbits_2D = []
     for o in orbits:
         o.integrate(ts,mwp,method='odeint')
-        if o.zmax() < 5*sun.zmax():
+        if o.zmax() < 3*sun.zmax():
             o.plot()
             orbits_2D.append(o)
             
@@ -146,24 +146,27 @@ sun_2D = orbits_2D[-1]
 sun_2D.integrate(ts,mwp_2D,method='odeint')
 orbits_2D = orbits_2D[:-1]
 
-#spiral parameters and defaults
-sp_m = 4    #4
-sp_spv = 20 #20
-sp_i = -15*(3.1415/180) #-12
-sp_x_0 = -150*(3.1415/180)   #-120
+#spiral parameters and defaults everything jumbled so galpy inputs match literature
+sp_m = 2   #4
+sp_spv = 15 #20
+sp_i = -6*(3.1415/180) #-12
+sp_x_0 = -130*(3.1415/180)   #-120
 sp_a = -sp_m/tan(sp_i)
 sp_gamma = sp_x_0/sp_m
 sp_fr_0 = 0.05  #0.05
 ro = 8
 vo = 220
-sp_A = -sp_fr_0 #*((ro*vo)**2) #not sure on this part but adding these makes it too big so leave them
+sp_A = -(1)*sp_fr_0 #*((ro*vo)**2) #not sure on this part but adding these makes it too big so leave them
+                    #galpy natural units takes care of this stuff - so just leave it
+                    #there was a lot of jumbling to get it to look the same as literature
+                    #just believe it!!!
 
 
-sp_component = SteadyLogSpiralPotential(amp = 1, omegas = sp_spv, A = sp_A, alpha = sp_a, gamma = sp_gamma)
+sp_component = SteadyLogSpiralPotential(amp = 1, omegas = sp_spv, A = sp_A, alpha = sp_a, gamma = sp_gamma, ro = 8, vo = 220)
 mwp_2D.append(sp_component) # not yet
 
 print("finally calculating distance from sun...")
-for o in orbits_2D:
+for o in orbits_2D[2:]:
     o_2D = o.toPlanar()
     o_2D.integrate(ts,mwp_2D,method='odeint')
     delta_x = o_2D.x(ts) - sun_2D.x(ts)

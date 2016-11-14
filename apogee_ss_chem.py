@@ -110,8 +110,28 @@ plt.title("Apogee Possible Solar Siblings")
 #fn = open("data/apo_candidates_1.pkl", "wb")
 #cp.dump(apo_candidates_1, fn)
 #fn.close()
-            
-            
+def pairwise_calc(abundance_all):
+    ss_centre = np.array([abundance_all.T[i].mean() for i in range(len(abundance_all[0]))])
+    centre_dist = []
+    for i in abundance_all:
+        x = i - ss_centre
+        y = np.absolute(x)
+        z = sum(y)/len(ss_centre)
+        centre_dist.append(z)
+    centre_dist = np.array(centre_dist)
+    
+    pairwise = []
+    count = 0
+    for i in abundance_all:
+        for j in abundance_all:
+            if np.array_equal(i, j) == False:
+                count += 1
+                x = i - j
+                y = np.absolute(x)
+                z = sum(y)/len(ss_centre)
+                pairwise.append(z)        
+    pairwise = np.array(pairwise)      
+    return centre_dist, pairwise
             
             
             

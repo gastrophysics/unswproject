@@ -139,41 +139,41 @@ for o in mystuff:
 #
 
 #convert into natural shit
-#ro = 8
-#vo = 220
-#delta_sun = estimateDeltaStaeckel(MWPotential2014,(sun.R(ts))/ro, (sun.z(ts))/vo)
-#aAS_sun = actionAngleStaeckel(pot=MWPotential2014,delta = delta_sun)
-#js_sun = aAS_sun((sun.R())/ro,(sun.vR())/vo,(sun.vT())/vo,(sun.z())/ro,(sun.vz())/vo)
-#mean_js = np.array([js_sun[0].mean(), js_sun[1].mean(), js_sun[2].mean()])
-#
-#print("going for the big fella")
-#for o in orbits:
-#    try:
-#        #quick method: only first instance
-#        delta_o = estimateDeltaStaeckel(MWPotential2014,(o.R(ts))/ro,(o.z(ts))/vo)
-#    #    plt.plot(js[0] - js_sun[0], ts)
-#        aAS = actionAngleStaeckel(pot=MWPotential2014,delta = delta_o)
-#        js_o = aAS((o.R())/ro,(o.vR())/vo,(o.vT())/vo,(o.z())/ro,(o.vz())/vo)
-#        mean_o_js = np.array([js_o[0].mean(), js_o[1].mean(), js_o[2].mean()])
-#        mean_js = np.vstack([mean_js, mean_o_js])
-#    except:
-#        #problem with this orbit (probs unbound)
-#        #let it just be big
-#        mean_o_js = np.array([1000*js_sun[0].mean(), 1000*js_sun[1].mean(), 1000*js_sun[2].mean()])
-#        mean_js = np.vstack([mean_js, mean_o_js])
-#
-#fd = open("data/mean_js_ss_t100.pkl", "wb")
-#cp.dump(mean_js ,fd)
-#fd.close()
-#
-#percentage_diffs = np.absolute((mean_js[1:] - mean_js[0]))/mean_js[0]
-#
-##as per the saved figure
-#plt.semilogy(percentage_diffs, 'o')
-#plt.title("Percentage Difference of Actions to Solar Orbit")
-#plt.axhline(5, linestyle = 'dashed', color = 'k')
-#plt.ylabel("Log Percentage")
-#plt.xlabel("APOGEE ID")
-#plt.xlim(-1,18)
-#x_labels = range(1, 19)
-#plt.xticks(x_labels, all_canidates[0].T[-1], rotation = -20)
+ro = 8
+vo = 220
+delta_sun = estimateDeltaStaeckel(MWPotential2014,(sun.R(ts))/ro, (sun.z(ts))/vo)
+aAS_sun = actionAngleStaeckel(pot=MWPotential2014,delta = delta_sun)
+js_sun = aAS_sun((sun.R())/ro,(sun.vR())/vo,(sun.vT())/vo,(sun.z())/ro,(sun.vz())/vo)
+mean_js = np.array([js_sun[0].mean(), js_sun[1].mean(), js_sun[2].mean()])
+
+print("going for the big fella")
+for o in orbits:
+    try:
+        #quick method: only first instance
+        delta_o = estimateDeltaStaeckel(MWPotential2014,(o.R(ts))/ro,(o.z(ts))/ro)
+    #    plt.plot(js[0] - js_sun[0], ts)
+        aAS = actionAngleStaeckel(pot=MWPotential2014,delta = delta_o)
+        js_o = aAS((o.R())/ro,(o.vR())/vo,(o.vT())/vo,(o.z())/ro,(o.vz())/vo)
+        mean_o_js = np.array([js_o[0].mean(), js_o[1].mean(), js_o[2].mean()])
+        mean_js = np.vstack([mean_js, mean_o_js])
+    except:
+        #problem with this orbit (probs unbound)
+        #let it just be big
+        mean_o_js = np.array([1000*js_sun[0].mean(), 1000*js_sun[1].mean(), 1000*js_sun[2].mean()])
+        mean_js = np.vstack([mean_js, mean_o_js])
+
+fd = open("data/mean_js_ss_t100.pkl", "wb")
+cp.dump(mean_js ,fd)
+fd.close()
+
+percentage_diffs = np.absolute((mean_js[1:] - mean_js[0]))/mean_js[0]
+
+#as per the saved figure
+plt.semilogy(percentage_diffs, 'o')
+plt.title("Difference of Actions to Solar Orbit")
+plt.axhline(5, linestyle = 'dashed', color = 'k')
+plt.ylabel("Log Difference")
+plt.xlabel("APOGEE ID")
+plt.xlim(-1,18)
+x_labels = range(1, 19)
+plt.xticks(x_labels, all_canidates[0].T[-1], rotation = -20)

@@ -48,15 +48,27 @@ mask = np.alltrue(np.isfinite(components[4]),1)
 components[4] = components[4][mask]
 
 plot_left = []
+vectors = []
 for component in components:
     pca = dr.PCA()
     pca_data = pca.fit(component)
     vector_variance = pca.explained_variance_ratio_
     plot_left.append(vector_variance.cumsum())
+    vector = pca.components_
+    vector = vector.round(4)
+    vectors.append(vector)
 #    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
 #    ax1.plot(range(1, n+1), vector_variance.cumsum(), colours[0])
 #    colours = colours[1:]
 #plt.xlim([1, n])
+number = 1
+for vector in vectors:
+    fn = open(str(number) + "vectors.csv", "wb")
+    np.savetxt(str(number) + "vectors.csv", vector, delimiter = ',')
+    fn.close()
+    number += 1
+    
+    
     
 #convert to H Basis
 plot_right = []
@@ -72,27 +84,27 @@ for component in components:
 
     
 #f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)    
-colours = ['k', 'm', 'b', 'g', 'r']
-for plot in plot_left:
-    plot = np.hstack((0, plot))
-    plt.plot(range(0, n+1), 100*plot, colours[0])
-    colours = colours[1:]
-colours = ['k', 'm', 'b', 'g', 'r']
+#colours = ['k', 'm', 'b', 'g', 'r']
 #for plot in plot_left:
 #    plot = np.hstack((0, plot))
 #    plt.plot(range(0, n+1), 100*plot, colours[0])
 #    colours = colours[1:]
-#prettify the plots
-plt.xlim([0, 15])
-plt.axhline(y = 85, linestyle = 'dashed')
-plt.axhline(y = 95, linestyle = 'dashed')
+#colours = ['k', 'm', 'b', 'g', 'r']
+##for plot in plot_left:
+##    plot = np.hstack((0, plot))
+##    plt.plot(range(0, n+1), 100*plot, colours[0])
+##    colours = colours[1:]
+##prettify the plots
 #plt.xlim([0, 15])
-#ax2.axhline(y = 85, linestyle = 'dashed')
-#ax2.axhline(y = 95, linestyle = 'dashed')
-plt.ylim([0, 100])
-#ax2.set_ylim([0, 100]) 
-plt.xlabel("Component Number") 
-#ax2.set_xlabel("Component Number")
-plt.ylabel("Variance Contribution (Cumulative Percentage)") 
-plt.title("PCA on [X/H] Basis")
+#plt.axhline(y = 85, linestyle = 'dashed')
+#plt.axhline(y = 95, linestyle = 'dashed')
+##plt.xlim([0, 15])
+##ax2.axhline(y = 85, linestyle = 'dashed')
+##ax2.axhline(y = 95, linestyle = 'dashed')
+#plt.ylim([0, 100])
+##ax2.set_ylim([0, 100]) 
+#plt.xlabel("Component Number") 
+##ax2.set_xlabel("Component Number")
+#plt.ylabel("Variance Contribution (Cumulative Percentage)") 
+#plt.title("PCA on [X/H] Basis")
 

@@ -173,8 +173,8 @@ def cluster_dynamics(cluster):
     #so for this cluster we have a 3 x cluster length array
     cluster_mean_js = np.array([mean_js.T[0].mean(), mean_js.T[1].mean(), mean_js.T[2].mean()])
     #average_difference
-    percentage_diffs = np.absolute((mean_js - cluster_mean_js))/cluster_mean_js
-    dynamics_summary = np.array([percentage_diffs.T[0].mean(), percentage_diffs.T[1].mean(), percentage_diffs.T[2].mean()])
+    diffs = np.absolute((mean_js - cluster_mean_js))/cluster_mean_js
+    dynamics_summary = np.array([diffs.T[0].mean(), diffs.T[1].mean(), diffs.T[2].mean()])
     return dynamics_summary
 
 def full_analysis(clusters):

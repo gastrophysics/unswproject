@@ -83,6 +83,7 @@ except:
     
 def generate_rand(measurement, error, measurement_type = None):
     #the type is the important part for converting the measurement
+    #the reason for this function is to handle measurement confusion
     if measurement_type == 'mas':
         error = error/3600000
     value = np.random.normal(loc = measurement, scale = error)
@@ -156,17 +157,18 @@ def add_spiral(arms):
     sp_fr_0 = generate_rand(sp_fr_0[0], sp_fr_0[1])
 #    ro = 8
 #    vo = 220
-    sp_A = -sp_fr_0 #*((ro*vo)**2) #not sure on this part but adding these makes it too big so leave them
-    sp_component = SteadyLogSpiralPotential(amp = 1, omegas = sp_spv, A = sp_A, alpha = sp_a, gamma = sp_gamma)
+    sp_A = -sp_fr_0 #to get from ramirez to galpy divide by 220 below so its in natural units
+    sp_component = SteadyLogSpiralPotential(amp = 1, omegas = sp_spv/220, A = sp_A, alpha = sp_a, gamma = sp_gamma)
     mwp_2D.append(sp_component) # not yet
 
-ID = candidate_ids[0]
-print("finally calculating distance from sun for 100 iterations " + ID)
+run = 25
 counts = []
-for ID in candidate_ids:
+for ID in candidate_ids[0:]:
+    print("finally calculating distance from sun for 10 iterations " + ID)
     count = 0
-    for i in range(1000):
-        add_spiral(4)
+    arms = 2
+    for i in range(run):
+#        add_spiral(arms)
         o = initialise_orbit(ID)
         o_2D = o.toPlanar()
         o_2D.integrate(ts,mwp_2D,method='odeint')
@@ -174,12 +176,16 @@ for ID in candidate_ids:
         delta_y = o_2D.y(ts) - sun_2D.y(ts)
         delta = (delta_x**2 + delta_y**2)**0.5
         delta = delta*1000
-    #    plt.semilogy(sun_2D.time(ts), delta*1000)
-        delta_before_3gyr = delta[(sun_2D.time(ts) <= -3)]
-        if delta_before_3gyr.min() <= 100:
+        plt.semilogy(sun_2D.time(ts), delta)
+        break
+        delta_before_4gyr = delta[(sun_2D.time(ts) <= -4)][(sun_2D.time(ts)[(sun_2D.time(ts) <= -4)] >= -5.2)]
+        if delta_before_4gyr.min() <= 100:
             count += 1
+            plt.semilogy(sun_2D.time(ts), delta)
+            break
     counts.append(count)
-print(counts)
+    break
+print(run, arms, counts)
     
         
         

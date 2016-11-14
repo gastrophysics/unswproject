@@ -42,43 +42,43 @@ data_labels = new_labels
 hdulist = fits.open('data/sobject_iraf_k2.fits')
 cols = hdulist[1].columns
 tbdata = hdulist[1].data
-mask =  ((tbdata.field("feh_sme") < 0.1) *
-        (tbdata.field("feh_sme") > -0.1))
+#mask =  ((tbdata.field("feh_sme") < 0.1) *
+#        (tbdata.field("feh_sme") > -0.1))
 data = np.vstack((tbdata.field(label) for label in data_labels)).T
 #mask *= np.all(np.isfinite(data), axis=1)
-data = data[mask]
+#data = data[mask]
 
 #we will have to grab some metadata ID, GLON/GLAT and whatever else
 #is interesting to us after analysing the data
-metadata_labels = ["ra", "dec", "rv_sme", "galah_id", "sobject_id"]
+metadata_labels = ["ra", "dec", "rv_sme", "e_rv_sme", "galah_id", "sobject_id"]
 metadata = np.vstack((tbdata.field(label) for label in metadata_labels)).T
-metadata = metadata[mask]
+#metadata = metadata[mask]
 
 #check the data
 print("data is:", data.shape)
 print("metadata is:", metadata.shape)
 n = data.shape
 
-#with the FE_H adjustment it is:
-m_metric = np.absolute(data.T[0]) #the iron content to start
-
-all_nans = np.sum(np.isnan(data), axis = 1, keepdims = True) # so we can keep track of all the nans
-#now get rid of the nans
-#print(m_metric[0])
+#without the FE_H adjustment it is:
+mmetric = np.absolute(data.T[0])
+all_nans = np.sum(np.isnan(data), axis = 1, keepdims = True)
 data = np.nan_to_num(data)
-for i in range(len(data_labels[1:])): #loop through the other contents measured against iron
-#    print(str(m_metric[0]) + " + " + str((data.T[i+1]-data.T[0])[0]) + " gives:")
-    m_metric = np.add(m_metric, np.absolute(data.T[i+1]-data.T[0]))
-#    print(str(m_metric[0]))
-    
-#print(str(m_metric[0]) + " - (" + str(data.T[0][0]) + " times " + str(all_nans.T[0][0]) + ")")
-m_metric = np.absolute(np.subtract(m_metric, np.absolute(data.T[0]*(all_nans.T[0])))) #one line back we added things that shouldnt be in here
+for i in range(len(data_labels[1:])):
+    mmetric = np.add(mmetric, np.absolute(data.T[i+1]))
+    #add them all up
+mmetric = np.divide(mmetric, np.subtract(n[1], all_nans).T[0])
 
-#print(m_metric[0])
-m_metric = np.divide(m_metric, np.subtract(n[1], all_nans).T[0])
-#print(m_metric[0])
+
+#with the FE_H adjustment it is: NOTE THIS IS WRONG, DATA ALREADY IN PROPER FORM
+#m_metric = np.absolute(data.T[0]) #the iron content to start
+##now get rid of the nans
+#for i in range(len(data_labels[1:])): #loop through the other contents measured against iron
+#    m_metric = np.add(m_metric, np.absolute(data.T[i+1]-data.T[0]))
+#m_metric = np.absolute(np.subtract(m_metric, np.absolute(data.T[0]*(all_nans.T[0])))) #one line back we added things that shouldnt be in here
+#m_metric = np.divide(m_metric, np.subtract(n[1], all_nans).T[0])
+
+
 #context
-
 #get things into gal coords if we want (but it's slow)
 #def radec_to_gal(ra, dec):
 #    coord = SkyCoord(ra, dec, frame='icrs', unit='deg')
@@ -96,8 +96,8 @@ add condition to reject objects with fewer than 8 or 9 abundance measurements
 """
 
 #three cutoff levels
-cutoff_mask = (m_metric < 0.05)
-m_metric = m_metric[cutoff_mask]
+cutoff_mask = (mmetric < 0.05)
+m_cutoff = mmetric[cutoff_mask]
 data = data[cutoff_mask]
 metadata = metadata[cutoff_mask]
 #gal_coords = gal_coords[cutoff_mask]
@@ -118,7 +118,7 @@ metadata = metadata[cutoff_mask]
 
 #make sure we have enough elements for a convincing candidate
 elements_mask = (all_nans[cutoff_mask].T[0] < 23)
-m_metric = m_metric[elements_mask]
+m_cutoff = m_cutoff[elements_mask]
 data = data[elements_mask]
 metadata = metadata[elements_mask]
 
@@ -141,6 +141,30 @@ spatials = fits.open('data/sobject_iraf_general_k2.fits')
 tb_spatials = spatials[1].data
 spatial_data = np.vstack((tb_spatials.field(label) for label in spatial_labels)).T
 
+#save each candidate
+gk_candidates = []
+for sobject in metadata.T[-1]:
+    sobject_spatial = spatial_data[(spatial_data.T[-1] == str(int(sobject)))]
+    sobject_spatial = sobject_spatial[0]
+    rv = metadata[(metadata.T[-1] == sobject)]
+    rv_err = rv[0][3]
+    rv = rv[0][2]
+    ra = float(sobject_spatial[0])
+    dec = float(sobject_spatial[1])
+    dmod = float(dist_dict[str(int(sobject))][0])
+    dist = (exp((dmod + 5)/5))/1000
+    pmRA = float(sobject_spatial[2])
+    pmDec = float(sobject_spatial[4])
+    Vlos = rv
+    Vlos_err = rv_err
+    pmRa_err = float(sobject_spatial[3])
+    pmDec_err = float(sobject_spatial[4])
+    cand = [ra,dec,dist,pmRA,pmDec,Vlos, pmRa_err, pmDec_err, Vlos_err, sobject]
+    gk_candidates.append(cand)
+print(len(gk_candidates))
+fd = open("data/dbscans/gk_ss_cands.pkl", "wb")
+cp.dump(gk_candidates, fd)
+fd.close()   
 
 #orbit time
 print("initialising 3D orbits for solar siblings...")
@@ -170,40 +194,47 @@ sun.integrate(ts,mwp,method='odeint')
 print("integrating all orbits")
 
 #3D orbits
-for o in orbits:
-    o.integrate(ts,mwp,method='odeint')
-    delta_x = o.x(ts) - sun.x(ts)
-    delta_y = o.y(ts) - sun.y(ts)
-    delta_z = o.z(ts) - sun.z(ts)
-    delta = (delta_x**2 + delta_y**2 + delta_z**2)**0.5
-    plt.semilogy(sun.time(ts), delta*1000)
+def plot_3d():
+    for o in orbits:
+        o.integrate(ts,mwp,method='odeint')
+        plt.plot(o.R(ts), o.z(ts))
+    plt.title("R and z of GALAH/Kepler SS Candidates")
+    plt.xlabel("R (kpc)")
+    plt.ylabel("z (kpc)")
+#        delta_x = o.x(ts) - sun.x(ts)
+#        delta_y = o.y(ts) - sun.y(ts)
+#        delta_z = o.z(ts) - sun.z(ts)
+#        delta = (delta_x**2 + delta_y**2 + delta_z**2)**0.5
+#        plt.semilogy(sun.time(ts), delta*1000)
     
 #2D orbits
-#mwp_2D = [i.toPlanar() for i in mwp]
-#sun_2D = sun.toPlanar()
-#sun_2D.integrate(ts,mwp_2D,method='odeint')
-##spiral parameters and defaults
-#sp_m = 2    #4    #2
-#sp_spv = 50 #20   #
-#sp_i = -5*(3.1415/180) #-12    #-5
-#sp_x_0 = -120*(3.1415/180)   #-120    #
-#sp_a = -sp_m/tan(sp_i)
-#sp_gamma = sp_x_0/sp_m
-#sp_fr_0 = 0.05  #0.05    #
-#ro = 8
-#vo = 220
-#sp_A = -sp_fr_0 #*((ro*vo)**2) #not sure on this part but adding these makes it too big so leave them
-#
-#
-#sp_component = SteadyLogSpiralPotential(amp = 1, omegas = sp_spv, A = sp_A, alpha = sp_a, gamma = sp_gamma)
-#mwp_2D.append(sp_component) # not yet
-#for o in orbits:
-#    o_2D = o.toPlanar()
-#    o_2D.integrate(ts,mwp_2D,method='odeint')
-#    delta_x = o_2D.x(ts) - sun_2D.x(ts)
-#    delta_y = o_2D.y(ts) - sun_2D.y(ts)
-#    delta = (delta_x**2 + delta_y**2)**0.5
-#    plt.semilogy(sun_2D.time(ts), delta*1000)
+def plot_2d(sp = False):
+    mwp_2D = [i.toPlanar() for i in mwp]
+    sun_2D = sun.toPlanar()
+    sun_2D.integrate(ts,mwp_2D,method='odeint')
+    #spiral parameters and defaults
+    if sp == True:
+        sp_m = 4    #4    #2
+        sp_spv = 25 #20   #
+        sp_i = -5*(3.1415/180) #-12    #-5
+        sp_x_0 = -120*(3.1415/180)   #-120    #
+        sp_a = -sp_m/tan(sp_i)
+        sp_gamma = sp_x_0/sp_m
+        sp_fr_0 = 0.05  #0.05    #
+        ro = 8
+        vo = 220
+        sp_A = -(sp_fr_0) #divide by row to normalise?? #*((vo)**2) #not sure on this part but adding these makes it too big so leave them
+        
+        
+        sp_component = SteadyLogSpiralPotential(amp = 1, omegas = sp_spv/220, A = sp_A, alpha = sp_a, gamma = sp_gamma)
+        mwp_2D.append(sp_component) # not yet
+    for o in orbits:
+        o_2D = o.toPlanar()
+        o_2D.integrate(ts,mwp_2D,method='odeint')
+        delta_x = o_2D.x(ts) - sun_2D.x(ts)
+        delta_y = o_2D.y(ts) - sun_2D.y(ts)
+        delta = (delta_x**2 + delta_y**2)**0.5
+        plt.semilogy(sun_2D.time(ts), delta*1000)
     
     
     
@@ -237,17 +268,17 @@ for o in orbits:
 #
 ##as per the saved figure
 #plt.semilogy(percentage_diffs, 'o')
-#plt.title("Percentage Difference of Actions to Solar Orbit")
+#plt.title("Difference of Actions to Solar Orbit")
 #plt.axhline(5, linestyle = 'dashed', color = 'k')
-#plt.ylabel("Log Percentage")
+#plt.ylabel("Log Difference")
 #plt.xlabel("Object ID")
-#plt.xlim(-1,7)
-#x_labels = range(0, 7)
+#plt.xlim(-1,5)
+#x_labels = range(0, 5)
 #plt.xticks(x_labels, metadata.T[-1].astype(int), rotation = -45)    
-
-#BACK TO CHEM STUFF
-#create a mask so that all abundances have info where available
-all_abundances_bool = mmm = np.ones((1, 24), dtype = bool)
+#
+##BACK TO CHEM STUFF
+##create a mask so that all abundances have info where available
+all_abundances_bool = np.ones((1, 24), dtype = bool)
 all_abundances_bool = all_abundances_bool[0]
 for i in range(len(data)):
     all_abundances_bool *= (data[i] != 0.0)
@@ -276,4 +307,4 @@ for i in abundance_all:
             y = np.absolute(x)
             z = sum(y)/len(ss_centre)
             pairwise.append(z)        
-#pairwise = np.array(pairwise)
+pairwise = np.array(pairwise)
